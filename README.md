@@ -1,0 +1,2 @@
+# haliteBot
+Bots for Halite
