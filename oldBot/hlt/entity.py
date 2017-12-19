@@ -307,10 +307,6 @@ class Ship(Entity):
         speed = speed if (distance >= speed) else distance
         return self.thrust(speed, angle)
 
-    def betterNav(self, target, game_map, speed):
-        #do astar on the positions
-        pass
-
     def can_dock(self, planet):
         """
         Determine whether a ship can dock to a planet

@@ -1,5 +1,5 @@
 from . import collision, entity
-import logging
+
 
 class Map:
     """
@@ -72,45 +72,17 @@ class Map:
             result.setdefault(entity.calculate_distance_between(foreign_entity), []).append(foreign_entity)
         return result
 
-    def unowned_planets(self, entity):
+    def nearby_planets_by_distance(self, entity):
         """
         :param entity: The source entity to find distances from
         :return: Dict containing all planets with their designated distances
         :rtype: dict
         """
         result = {}
-        for planet in self.all_planets():
-            if planet.is_owned():
+        for foreign_entity in self.all_planets():
+            if foreign_entity.is_owned():
                 continue
-            result.setdefault(entity.calculate_distance_between(planet), []).append(planet)
-        return result
-
-    def nearest_enemy_planet(self, entity):
-        nearest = None
-        for planet in self.all_planets():
-            if planet.is_owned() and planet.owner.id != self.my_id:
-                dist = entity.calculate_distance_between(planet)
-                if nearest is None or nearest[0] < dist:
-                    nearest = (dist, planet)
-        if nearest == None:
-            return None
-        return nearest[1]
-
-    def dockable_planets(self, entity):
-        """
-        :param entity: The source entity to find distances from
-        :return: Dict containing all planets with their designated distances
-        :rtype: dict
-        """
-        result = {}
-        for planet in self.all_planets():
-            if planet.is_owned():
-                if planet.owner.id != self.my_id:
-                    continue
-                if len(planet._docked_ship_ids) < planet.num_docking_spots:
-                    result.setdefault(entity.calculate_distance_between(planet), []).append(planet)
-                continue
-            result.setdefault(entity.calculate_distance_between(planet), []).append(planet)
+            result.setdefault(entity.calculate_distance_between(foreign_entity), []).append(foreign_entity)
         return result
 
     def nearest_enemy_docked(self, entity):
@@ -119,12 +91,15 @@ class Map:
         :return: Dict containing all planets with their designated distances
         :rtype: dict
         """
-        planet = self.nearest_enemy_planet(entity)
-        if planet == None:
+        distances = {}
+        for ship in self._all_ships():
+            if ship.owner != self.my_id:
+                distances.setdefault(entity.calculate_distance_between(ship), []).append(ship)
+        distList = sorted(distances)
+        if len(distances) > 0:
+            return distances[distList[0]][0]
+        else:
             return None
-        ship = planet._docked_ships[planet._docked_ship_ids[0]]
-        logging.info(ship)
-        return ship
 
     def _link(self):
         """
@@ -150,7 +125,6 @@ class Map:
         assert(len(tokens) == 0)  # There should be no remaining tokens at this point
         self._link()
 
-
     def _all_ships(self):
         """
         Helper function to extract all ships from all players
@@ -162,10 +136,6 @@ class Map:
         for player in self.all_players():
             all_ships.extend(player.all_ships())
         return all_ships
-
-    def _enemy_ships(self):
-        
-        return enemies
 
     def _intersects_entity(self, target):
         """

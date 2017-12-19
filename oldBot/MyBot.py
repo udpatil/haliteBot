@@ -20,7 +20,6 @@ import logging
 game = hlt.Game("Udpatil")
 # Then we print our start message to the logs
 logging.info("Starting my bot!")
-planetsFree = True
 
 while True:
     # TURN START
@@ -38,36 +37,25 @@ while True:
 
         # For each planet in the game (only non-destroyed planets are included)
         # gets the nearest unowned planet
-        if planetsFree:
-            planets = game_map.unowned_planets(ship)
-            if len(planets) == 0:
-                planets = game_map.dockable_planets(ship)
-            planetsFree = False
-        else:
-            planets = game_map.dockable_planets(ship)
-
+        planets = game_map.nearby_planets_by_distance(ship)
         if len(planets) == 0:
             #go towards nearest docked enemy ship
             enemy = game_map.nearest_enemy_docked(ship)
             navigate_command = None
-            if enemy:
-                for ship in game_map.get_me().all_ships():
-                     # If the ship is docked
-                    if ship.docking_status != ship.DockingStatus.UNDOCKED:
-                        # Skip this ship
-                        continue
-
-                    navigate_command = ship.navigate(
-                        ship.closest_point_to(enemy, min_distance=0),
-                        game_map,
-                        speed=int(hlt.constants.MAX_SPEED),
-                        ignore_ships=False)
-                    if navigate_command:
-                        command_queue.append(navigate_command)
-                break
+            if enemy is None:
+                navigate_command = ship.thrust(0,0)
+            else:
+                navigate_command = ship.navigate(
+                    ship.closest_point_to(enemy, min_distance=0),
+                    game_map,
+                    speed=int(hlt.constants.MAX_SPEED),
+                    ignore_ships=False)
+            if navigate_command:
+                command_queue.append(navigate_command)
             continue
 
         planet = planets[sorted(planets)[0]][0]
+        logging.info(planet)
         # If we can dock, let's (try to) dock. If two ships try to dock at once, neither will be able to.
         if ship.can_dock(planet):
             # We add the command by appending it to the command_queue
