@@ -17,9 +17,9 @@ import logging
 
 # GAME START
 # Here we define the bot's name as Settler and initialize the game, including communication with the Halite engine.
-game = hlt.Game("Udpatil")
+game = hlt.Game("Settler")
 # Then we print our start message to the logs
-logging.info("Starting my bot!")
+logging.info("Starting my Settler bot!")
 
 while True:
     # TURN START
@@ -36,49 +36,36 @@ while True:
             continue
 
         # For each planet in the game (only non-destroyed planets are included)
-        # gets the nearest unowned planet
-        planets = game_map.nearby_planets_by_distance(ship)
-        if len(planets) == 0:
-            #go towards nearest docked enemy ship
-            enemy = game_map.nearest_enemy_docked(ship)
-            navigate_command = None
-            if enemy is None:
-                navigate_command = ship.thrust(0,0)
+        for planet in game_map.all_planets():
+            # If the planet is owned
+            if planet.is_owned():
+                # Skip this planet
+                continue
+
+            # If we can dock, let's (try to) dock. If two ships try to dock at once, neither will be able to.
+            if ship.can_dock(planet):
+                # We add the command by appending it to the command_queue
+                command_queue.append(ship.dock(planet))
             else:
+                # If we can't dock, we move towards the closest empty point near this planet (by using closest_point_to)
+                # with constant speed. Don't worry about pathfinding for now, as the command will do it for you.
+                # We run this navigate command each turn until we arrive to get the latest move.
+                # Here we move at half our maximum speed to better control the ships
+                # In order to execute faster we also choose to ignore ship collision calculations during navigation.
+                # This will mean that you have a higher probability of crashing into ships, but it also means you will
+                # make move decisions much quicker. As your skill progresses and your moves turn more optimal you may
+                # wish to turn that option off.
                 navigate_command = ship.navigate(
-                    ship.closest_point_to(enemy, min_distance=0),
+                    ship.closest_point_to(planet),
                     game_map,
                     speed=int(hlt.constants.MAX_SPEED),
-                    ignore_ships=False)
-            if navigate_command:
-                command_queue.append(navigate_command)
-            continue
-
-        planet = planets[sorted(planets)[0]][0]
-        logging.info(planet)
-        # If we can dock, let's (try to) dock. If two ships try to dock at once, neither will be able to.
-        if ship.can_dock(planet):
-            # We add the command by appending it to the command_queue
-            command_queue.append(ship.dock(planet))
-        else:
-            # If we can't dock, we move towards the closest empty point near this planet (by using closest_point_to)
-            # with constant speed. Don't worry about pathfinding for now, as the command will do it for you.
-            # We run this navigate command each turn until we arrive to get the latest move.
-            # Here we move at half our maximum speed to better control the ships
-            # In order to execute faster we also choose to ignore ship collision calculations during navigation.
-            # This will mean that you have a higher probability of crashing into ships, but it also means you will
-            # make move decisions much quicker. As your skill progresses and your moves turn more optimal you may
-            # wish to turn that option off.
-            navigate_command = ship.navigate(
-                ship.closest_point_to(planet),
-                game_map,
-                speed=int(hlt.constants.MAX_SPEED),
-                ignore_ships=False)
-            # If the move is possible, add it to the command_queue (if there are too many obstacles on the way
-            # or we are trapped (or we reached our destination!), navigate_command will return null;
-            # don't fret though, we can run the command again the next turn)
-            if navigate_command:
-                command_queue.append(navigate_command)
+                    ignore_ships=True)
+                # If the move is possible, add it to the command_queue (if there are too many obstacles on the way
+                # or we are trapped (or we reached our destination!), navigate_command will return null;
+                # don't fret though, we can run the command again the next turn)
+                if navigate_command:
+                    command_queue.append(navigate_command)
+            break
 
     # Send our set of commands to the Halite engine for this turn
     game.send_command_queue(command_queue)
